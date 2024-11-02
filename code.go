@@ -193,7 +193,7 @@ var _Gov_Schema_message = map[string]map[string]string{
 }
 
 // _Gov_Error returns an error message based on the given key.
-var _Gov_Error = func(key, field1, value1, field2, value2 string) error {
+func _Gov_Error(key, field1, value1, field2, value2 string) error {
 	var msg string
 	for _, word := range strings.Split(_Gov_Schema_message["en"][key], " ") {
 		if !strings.HasPrefix(word, ":") {

@@ -1,22 +1,147 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/types"
 	"log"
+	"os"
+	"reflect"
+	"strings"
+
+	"golang.org/x/tools/go/packages"
+)
+
+var (
+	typeNames = flag.String("type", "", "comma-separated list of type names; must be set")
+	output    = flag.String("output", "", "output file name; default srcdir/<type>_schema.go")
 )
 
 func main() {
-	u := User{ID: 0}
-	schema := NewUserSchema(u)
-	if err := schema.Validate(); err != nil {
-		log.Fatalln(err)
+	log.SetFlags(0)
+	log.SetPrefix("govader: ")
+	flag.Usage = Usage
+	flag.Parse()
+	if len(*typeNames) == 0 {
+		flag.Usage()
+		os.Exit(2)
 	}
+	typeNames := strings.Split(*typeNames, ",")
+
+	// We accept either one directory or a list of files. Which do we have?
+	args := flag.Args()
+	if len(args) == 0 {
+		// Default: process whole package in current directory.
+		args = []string{"."}
+	}
+
+	pkgs, err := loadPackages(args)
+	if err != nil {
+		panic(err)
+	}
+
+	g := Generator{pkg: pkgs[0]}
+	for _, typeName := range typeNames {
+		values := findTypeValues(typeName, pkgs[0])
+		if len(values) > 0 {
+			schema := ParseSchema(values)
+			g.generate(schema)
+		}
+	}
+
 }
 
-//go:generate govader --name User --output=schemas.go --locale=en,ar
-type User struct {
-	ID   int    `gov:"required"`
-	Name string `gov:"required"`
-	// ID    int    `gov:"required;min=1,max=1000;regexp=^[0-9]*$;required_if=Name=John,between=1,1000;different=ID2;size=10;same=ID3"`
-	Email string `gov:"email"`
-	// Age   int
+func loadPackages(pattern []string) ([]*Package, error) {
+	cfg := &packages.Config{
+		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
+	}
+	pkgs, err := packages.Load(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var pp []*Package
+	for _, pkg := range pkgs {
+		pp = append(pp, &Package{
+			Package: pkg,
+			files:   pkg.Syntax,
+		})
+	}
+	return pp, nil
 }
+
+func findTypeValues(typeName string, pkg *Package) []StructInfo {
+	values := make([]StructInfo, 0, 100)
+	for _, f := range pkg.files {
+		ast.Inspect(f.file, f.genDecl)
+		values = append(values, f.values...)
+	}
+	return values
+}
+
+type Package struct {
+	*packages.Package
+	files []*ast.File
+}
+
+type File struct {
+	pkg      *Package
+	file     *ast.File
+	typeName string
+	values   []StructInfo
+}
+
+func (f *File) genDecl(n ast.Node) bool {
+	typeSpec, ok := n.(*ast.TypeSpec)
+	if !ok {
+		return true
+	}
+
+	structName := typeSpec.Name.Name
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok || structName != f.typeName {
+		return true
+	}
+
+	value := StructInfo{
+		name:      structName,
+		fieldList: make([]FieldInfo, 0),
+	}
+	for _, field := range structType.Fields.List {
+		for _, iden := range field.Names {
+			fieldType := f.pkg.TypesInfo.TypeOf(field.Type)
+			basicType := fieldType.Underlying().(*types.Basic).Info()
+
+			var tag string
+			if field.Tag != nil {
+				tag = reflect.StructTag(field.Tag.Value[1 : len(field.Tag.Value)-1]).Get("gov")
+			}
+			value.fieldList = append(value.fieldList, FieldInfo{
+				name: iden.Name,
+				tag:  tag,
+				typ:  basicType,
+			})
+
+		}
+	}
+	f.values = append(f.values, value)
+
+	return false
+}
+
+// Usage is a replacement usage function for the flags package.
+func Usage() {
+	fmt.Fprintf(os.Stderr, "Usage of govader:\n")
+	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T [directory]\n")
+	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T files... # Must be a single package\n")
+	fmt.Fprintf(os.Stderr, "For more information, see:\n")
+	fmt.Fprintf(os.Stderr, "\thttps://pkg.go.dev/golang.org/x/tools/cmd/govader\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n")
+	flag.PrintDefaults()
+}
+
+// u := User{ID: 0}
+// 	schema := NewUserSchema(u)
+// 	if err := schema.Validate(); err != nil {
+// 		log.Fatalln(err)
+// 	}

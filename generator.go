@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type Schema struct {
+type StructSchema struct {
 	Name      string
 	Rules     []SchemaRule
 	FieldList map[string]Value
@@ -37,16 +37,16 @@ type SchemaRule struct {
 }
 
 type Generator struct {
-	buf        bytes.Buffer // Accumulated output.
-	schemas    []Schema
-	validators map[string][]string // e.g: {RequiredIf: [Same, Required]}
+	pkg *Package
+	buf bytes.Buffer // Accumulated output.
+	// validators map[string][]string // e.g: {RequiredIf: [Same, Required]}
 }
 
 func (g *Generator) Printf(format string, args ...interface{}) {
 	fmt.Fprintf(&g.buf, format, args...)
 }
 
-func (g *Generator) generate() {
+func (g *Generator) generate(schema []StructSchema) {
 	// Generate type(s) _Gov_(*)Validator
 	// Generate type _Gov_Rule
 	// Generate type(s)  _Gov_Rule(*)

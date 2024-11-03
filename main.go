@@ -39,10 +39,8 @@ func main() {
 	}
 	typeNames := strings.Split(*typeNames, ",")
 
-	// We accept either one directory or a list of files. Which do we have?
 	args := flag.Args()
 	if len(args) == 0 {
-		// Default: process whole package in current directory.
 		args = []string{"."}
 	}
 
@@ -86,7 +84,7 @@ func findTypeValues(typeName string, pkg *Package) []StructInfo {
 	values := make([]StructInfo, 0, 100)
 	for _, f := range pkg.files {
 		f.typeName = typeName
-		ast.Inspect(f.file, f.genDecl)
+		ast.Inspect(f.file, f.genTypeSpec)
 		values = append(values, f.values...)
 	}
 	return values
@@ -104,7 +102,7 @@ type File struct {
 	values   []StructInfo
 }
 
-func (f *File) genDecl(n ast.Node) bool {
+func (f *File) genTypeSpec(n ast.Node) bool {
 	typeSpec, ok := n.(*ast.TypeSpec)
 	if !ok {
 		return true

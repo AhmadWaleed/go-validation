@@ -175,27 +175,25 @@ func (r _Gov_RuleConditional) Validate() error {
 	return r.Validator(r.Field1, r.Value1, r.Field2, r.Value2, r.Cond)
 }
 
-var _Gov_Schema_message = map[string]map[string]string{
-	"en": {
-		"required":         "The :field field is required.",
-		"required_if":      "The :field1 field is required when :field2 is :value2.",
-		"required_with":    "The :field1 field is required when :field2 is present.",
-		"required_without": "The :field1 field is required when :field2 is not present.",
-		"min":              "The :field field must be at least :value.",
-		"max":              "The :field field may not be greater than :value.",
-		"size":             "The :field field must be :value.",
-		"same":             "The :field1 field must match the :field2 field.",
-		"different":        "The :field1 field must be different from the :field2 field.",
-		"between":          "The :field1 field must be between :field2 and :value2.",
-		"regexp":           "The :field field does not match the required format :value.",
-		"email":            "The :field field must be a valid email address.",
-	},
+var _Gov_Schema_message = map[string]string{
+	"required":         "The :field field is required.",
+	"required_if":      "The :field1 field is required when :field2 is :value2.",
+	"required_with":    "The :field1 field is required when :field2 is present.",
+	"required_without": "The :field1 field is required when :field2 is not present.",
+	"min":              "The :field field must be at least :value.",
+	"max":              "The :field field may not be greater than :value.",
+	"size":             "The :field field must be :value.",
+	"same":             "The :field1 field must match the :field2 field.",
+	"different":        "The :field1 field must be different from the :field2 field.",
+	"between":          "The :field1 field must be between :field2 and :value2.",
+	"regexp":           "The :field field does not match the required format :value.",
+	"email":            "The :field field must be a valid email address.",
 }
 
 // _Gov_Error returns an error message based on the given key.
 func _Gov_Error(key, field1, value1, field2, value2 string) error {
 	var msg string
-	for _, word := range strings.Split(_Gov_Schema_message["en"][key], " ") {
+	for _, word := range strings.Split(_Gov_Schema_message[key], " ") {
 		if !strings.HasPrefix(word, ":") {
 			msg += word + " "
 			continue

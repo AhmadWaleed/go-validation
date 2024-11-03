@@ -16,6 +16,7 @@ import (
 var (
 	typeNames = flag.String("type", "", "comma-separated list of type names; must be set")
 	output    = flag.String("output", "", "output file name; default srcdir/<type>_schema.go")
+	locale    = flag.String("locale", "en", "locale to use for error messages; default en")
 )
 
 func Usage() {
@@ -44,22 +45,24 @@ func main() {
 		args = []string{"."}
 	}
 
-	pkg, err := loadPackages(args)
+	pkg, err := loadPackage(args)
 	if err != nil {
 		panic(err)
 	}
 
 	g := Generator{pkg: pkg}
+	_ = g
 	for _, typeName := range typeNames {
 		values := findTypeValues(typeName, pkg)
 		if len(values) > 0 {
-			schema := ParseSchema(values)
-			g.generate(schema)
+			// schema := ParseSchema(values)
+			// g.generate(schema)
 		}
+		log.Printf("%+v\n", values)
 	}
 }
 
-func loadPackages(pattern []string) (*Package, error) {
+func loadPackage(pattern []string) (*Package, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
 	}
@@ -84,7 +87,7 @@ func findTypeValues(typeName string, pkg *Package) []StructInfo {
 	values := make([]StructInfo, 0, 100)
 	for _, f := range pkg.files {
 		f.typeName = typeName
-		ast.Inspect(f.file, f.genTypeSpec)
+		ast.Inspect(f.file, f.scanTypeStruct)
 		values = append(values, f.values...)
 	}
 	return values
@@ -102,7 +105,7 @@ type File struct {
 	values   []StructInfo
 }
 
-func (f *File) genTypeSpec(n ast.Node) bool {
+func (f *File) scanTypeStruct(n ast.Node) bool {
 	typeSpec, ok := n.(*ast.TypeSpec)
 	if !ok {
 		return true

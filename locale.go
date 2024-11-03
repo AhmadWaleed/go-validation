@@ -7,11 +7,11 @@ import (
 )
 
 //go:embed locale.json
-var locale embed.FS
+var localeFS embed.FS
 
 func LoadLocale(langs ...string) map[string]map[string]string {
 	m := make(map[string]map[string]string)
-	data, err := locale.ReadFile("locale.json")
+	data, err := localeFS.ReadFile("locale.json")
 	if err != nil {
 		panic((err))
 	}

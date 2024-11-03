@@ -13,6 +13,11 @@ type FieldInfo struct {
 	typ  types.BasicInfo
 }
 
-func ParseSchema(info []StructInfo) []StructSchema {
-	return nil
+type Schema struct {
+	types      StructInfo
+	validators map[string][]string // e.g: {RequiredIf: [Same, Required]}
+}
+
+func ParseSchema(values []StructInfo) Schema {
+	return Schema{}
 }

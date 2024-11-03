@@ -46,7 +46,7 @@ func (g *Generator) Printf(format string, args ...interface{}) {
 	fmt.Fprintf(&g.buf, format, args...)
 }
 
-func (g *Generator) generate(schema []StructSchema) {
+func (g *Generator) generate(schema Schema) {
 	// Generate type(s) _Gov_(*)Validator
 	// Generate type _Gov_Rule
 	// Generate type(s)  _Gov_Rule(*)

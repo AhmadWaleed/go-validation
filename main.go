@@ -18,6 +18,16 @@ var (
 	output    = flag.String("output", "", "output file name; default srcdir/<type>_schema.go")
 )
 
+func Usage() {
+	fmt.Fprintf(os.Stderr, "Usage of govader:\n")
+	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T [directory]\n")
+	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T files... # Must be a single package\n")
+	fmt.Fprintf(os.Stderr, "For more information, see:\n")
+	fmt.Fprintf(os.Stderr, "\thttps://pkg.go.dev/golang.org/x/tools/cmd/govader\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n")
+	flag.PrintDefaults()
+}
+
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("govader: ")
@@ -36,23 +46,22 @@ func main() {
 		args = []string{"."}
 	}
 
-	pkgs, err := loadPackages(args)
+	pkg, err := loadPackages(args)
 	if err != nil {
 		panic(err)
 	}
 
-	g := Generator{pkg: pkgs[0]}
+	g := Generator{pkg: pkg}
 	for _, typeName := range typeNames {
-		values := findTypeValues(typeName, pkgs[0])
+		values := findTypeValues(typeName, pkg)
 		if len(values) > 0 {
 			schema := ParseSchema(values)
 			g.generate(schema)
 		}
 	}
-
 }
 
-func loadPackages(pattern []string) ([]*Package, error) {
+func loadPackages(pattern []string) (*Package, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
 	}
@@ -60,19 +69,23 @@ func loadPackages(pattern []string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	var pp []*Package
-	for _, pkg := range pkgs {
-		pp = append(pp, &Package{
-			Package: pkg,
-			files:   pkg.Syntax,
+	gopkg := pkgs[0]
+	pkg := &Package{Package: gopkg}
+	var files []*File
+	for _, f := range gopkg.Syntax {
+		files = append(files, &File{
+			pkg:  pkg,
+			file: f,
 		})
 	}
-	return pp, nil
+	pkg.files = files
+	return pkg, nil
 }
 
 func findTypeValues(typeName string, pkg *Package) []StructInfo {
 	values := make([]StructInfo, 0, 100)
 	for _, f := range pkg.files {
+		f.typeName = typeName
 		ast.Inspect(f.file, f.genDecl)
 		values = append(values, f.values...)
 	}
@@ -81,7 +94,7 @@ func findTypeValues(typeName string, pkg *Package) []StructInfo {
 
 type Package struct {
 	*packages.Package
-	files []*ast.File
+	files []*File
 }
 
 type File struct {
@@ -128,20 +141,3 @@ func (f *File) genDecl(n ast.Node) bool {
 
 	return false
 }
-
-// Usage is a replacement usage function for the flags package.
-func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of govader:\n")
-	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T [directory]\n")
-	fmt.Fprintf(os.Stderr, "\tgovader [flags] -type T files... # Must be a single package\n")
-	fmt.Fprintf(os.Stderr, "For more information, see:\n")
-	fmt.Fprintf(os.Stderr, "\thttps://pkg.go.dev/golang.org/x/tools/cmd/govader\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
-}
-
-// u := User{ID: 0}
-// 	schema := NewUserSchema(u)
-// 	if err := schema.Validate(); err != nil {
-// 		log.Fatalln(err)
-// 	}

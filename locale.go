@@ -3,13 +3,12 @@ package main
 import (
 	"embed"
 	"encoding/json"
-	"slices"
 )
 
 //go:embed locale.json
 var localeFS embed.FS
 
-func LoadLocale(langs ...string) map[string]map[string]string {
+func LoadLocale(locale string) map[string]string {
 	m := make(map[string]map[string]string)
 	data, err := localeFS.ReadFile("locale.json")
 	if err != nil {
@@ -18,10 +17,5 @@ func LoadLocale(langs ...string) map[string]map[string]string {
 	if err := json.Unmarshal(data, &m); err != nil {
 		panic(err)
 	}
-	for lang := range m {
-		if !slices.Contains(langs, lang) {
-			delete(m, lang)
-		}
-	}
-	return m
+	return m[locale]
 }

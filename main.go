@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -38,6 +39,17 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
+	msgs := LoadLocale(*locale)
+	tmpl := &CodeTemplate{
+		Messages: msgs,
+		Schema: Schema{
+			validators: []string{
+				"required", "required_if", "required_with", "required_without", "min", "max", "between", "same", "different", "regexp", "email",
+			},
+		},
+	}
+	tmpl.Render(context.Background(), os.Stdout)
+	return
 	typeNames := strings.Split(*typeNames, ",")
 
 	args := flag.Args()

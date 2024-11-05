@@ -5,6 +5,8 @@ import (
 	"go/types"
 	"maps"
 	"strings"
+
+	"github.com/spf13/cast"
 )
 
 type StructInfo struct {
@@ -21,6 +23,41 @@ type FieldInfo struct {
 type Schema struct {
 	rules      []SchemaRule
 	validators []string
+}
+
+type Value struct {
+	Value any
+}
+
+func (v Value) toString() string {
+	switch v.Value.(type) {
+	case float32, float64:
+		v := cast.ToString(v.Value)
+		if v == "0.0" {
+			return "0"
+		}
+		return v
+	default:
+		return cast.ToString(v.Value)
+	}
+}
+
+type ruleType uint8
+
+const (
+	rulePresence = iota
+	ruleValueConstraint
+	ruleConditional
+	ruleRange
+)
+
+type SchemaRule struct {
+	Name   string
+	Type   ruleType
+	Field1 string
+	Field2 string
+	Cond1  *Value
+	Cond2  *Value
 }
 
 // e.g: {RequiredIf: [Same, Required]}
@@ -67,7 +104,7 @@ func parseSchema(info []StructInfo) (Schema, error) {
 
 func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 	var rule SchemaRule
-	kv := strings.Split(rawRule, "=")
+	kv := strings.SplitN(rawRule, "=", 1)
 	if len(kv) < 0 || len(kv) > 2 {
 		return rule, fmt.Errorf("invalid rule format: %v", rawRule)
 	}

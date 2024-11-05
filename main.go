@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/types"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -39,44 +42,65 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	msgs := LoadLocale(*locale)
-	tmpl := &CodeTemplate{
-		Messages: msgs,
-		Schema: Schema{
-			validators: []string{
-				"required", "required_if", "required_with", "required_without", "min", "max", "between", "same", "different", "regexp", "email",
-			},
-		},
-	}
-	tmpl.Render(context.Background(), os.Stdout)
-	return
 	typeNames := strings.Split(*typeNames, ",")
 
 	args := flag.Args()
 	if len(args) == 0 {
-		args = []string{"."}
+		args = []string{"."} // Default to current directory.
 	}
+	dir := filepath.Dir(args[0])
 
 	pkg, err := loadPackage(args)
 	if err != nil {
 		panic(err)
 	}
 
-	g := Generator{pkg: pkg}
-	_ = g
+	var foundTypes []string
+	var typeInfo []StructInfo
 	for _, typeName := range typeNames {
 		values := findTypeValues(typeName, pkg)
 		if len(values) > 0 {
-			// schema := ParseSchema(values)
-			// g.generate(schema)
+			foundTypes = append(foundTypes, typeName)
+			typeInfo = append(typeInfo, values...)
 		}
-		log.Printf("%+v\n", values)
+	}
+
+	if len(typeInfo) == 0 {
+		log.Println("no types found")
+		return
+	}
+
+	schema, err := parseSchema(typeInfo)
+	if err != nil {
+		log.Fatalf("invalid schema: %s", err)
+	}
+
+	tmpl := &CodeTemplate{
+		PackageName: pkg.Package.Name,
+		Messages:    LoadLocale(*locale),
+		Schema:      schema,
+	}
+
+	buf := new(bytes.Buffer) // Accumulated output.
+	tmpl.Render(context.Background(), buf)
+
+	// Format the output.
+	src := gofmt(buf)
+
+	// Write to file.
+	outputName := *output
+	if outputName == "" {
+		outputName = filepath.Join(dir, baseName(foundTypes[0]))
+	}
+	err = os.WriteFile(outputName, src, 0644)
+	if err != nil {
+		log.Fatalf("writing output: %s", err)
 	}
 }
 
 func loadPackage(pattern []string) (*Package, error) {
 	cfg := &packages.Config{
-		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
+		Mode: packages.NeedName | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
 	}
 	pkgs, err := packages.Load(cfg)
 	if err != nil {
@@ -96,7 +120,7 @@ func loadPackage(pattern []string) (*Package, error) {
 }
 
 func findTypeValues(typeName string, pkg *Package) []StructInfo {
-	values := make([]StructInfo, 0, 100)
+	values := make([]StructInfo, 0, 10)
 	for _, f := range pkg.files {
 		f.typeName = typeName
 		ast.Inspect(f.file, f.scanTypeStruct)
@@ -153,4 +177,20 @@ func (f *File) scanTypeStruct(n ast.Node) bool {
 	f.values = append(f.values, value)
 
 	return false
+}
+
+// gofmt formats and returns the gofmt-ed contents of given buffer.
+func gofmt(buf *bytes.Buffer) []byte {
+	src, err := format.Source(buf.Bytes())
+	if err != nil {
+		log.Printf("warning: internal error: invalid Go generated: %s", err)
+		log.Printf("warning: compile the package to analyze the error")
+		return buf.Bytes()
+	}
+	return src
+}
+
+func baseName(typename string) string {
+	suffix := "schema.go"
+	return fmt.Sprintf("%s_%s", strings.ToLower(typename), suffix)
 }

@@ -3,7 +3,7 @@
 
 //line tmpl.ego:1
 
-package main
+package govader
 
 import "fmt"
 import "html"

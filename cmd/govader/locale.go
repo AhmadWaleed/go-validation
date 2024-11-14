@@ -1,4 +1,4 @@
-package govader
+package main
 
 import (
 	"embed"

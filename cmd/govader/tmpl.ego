@@ -1,5 +1,5 @@
 <%
-package govader
+package main
 
 var TemplFuncs = map[string]string{
 	"error": `

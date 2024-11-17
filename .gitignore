@@ -24,5 +24,6 @@
 # Go workspace file
 _code.go
 _user.go
+playground
 
 # End of https://www.toptal.com/developers/gitignore/api/go

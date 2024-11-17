@@ -207,7 +207,7 @@ func (tmpl *CodeTemplate) Render(ctx context.Context, w io.Writer) {
 			_, _ = io.WriteString(w, "\n        ")
 //line tmpl.ego:252
 			// Check for nested validators in the 'validators' map
-			if nested, ok := validators[validator]; ok && len(nested) > 0 {
+			if nested, ok := validatorRuleSet[validator]; ok && len(nested) > 0 {
 //line tmpl.ego:254
 				_, _ = io.WriteString(w, "\n            ")
 //line tmpl.ego:254

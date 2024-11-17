@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/format"
 	"go/types"
-	"gov"
 	"log"
 	"os"
 	"path/filepath"
@@ -57,7 +56,7 @@ func main() {
 	}
 
 	var foundTypes []string
-	var typeInfo []gov.StructInfo
+	var typeInfo []StructInfo
 	for _, typeName := range typeNames {
 		values := findTypeValues(typeName, pkg)
 		if len(values) > 0 {

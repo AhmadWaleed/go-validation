@@ -4,20 +4,21 @@ import (
 	"fmt"
 	"go/types"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cast"
 )
 
 type StructInfo struct {
-	name      string
-	fieldList []FieldInfo
+	name      string      // Name of the struct.
+	fieldList []FieldInfo // List of fields in the struct.
 }
 
 type FieldInfo struct {
-	name string
-	tag  string
-	typ  types.BasicInfo
+	name string          // Name of the field.
+	tag  string          // Validation tag. e.g `required;min=1`
+	typ  types.BasicInfo // Type of the field.
 }
 
 type Schema struct {
@@ -26,6 +27,7 @@ type Schema struct {
 }
 
 type Value struct {
+	Type  types.BasicInfo
 	Value any
 }
 
@@ -60,23 +62,27 @@ type SchemaRule struct {
 	Cond2  *Value
 }
 
-// e.g: {RequiredIf: [Same, Required]}
-var validators = map[string][]string{
-	"required":         nil,
-	"required_if":      []string{"required", "same"},
-	"required_with":    nil,
-	"required_without": nil,
-	"min":              nil,
-	"max":              nil,
-	"between":          nil,
-	"same":             nil,
-	"different":        nil,
-	"regexp":           nil,
-	"email":            nil,
-}
+var (
+	// e.g: {RequiredIf: [Same, Required]}
+	validatorRuleSet = map[string][]string{
+		"required":         nil,
+		"required_if":      {"required", "same"},
+		"required_with":    nil,
+		"required_without": nil,
+		"min":              nil,
+		"max":              nil,
+		"between":          nil,
+		"same":             nil,
+		"different":        nil,
+		"regexp":           nil,
+		"email":            nil,
+	}
+	// presetValConstRules contains list of predefined value constraint rules.
+	presetValConstRules = []string{"email"}
+)
 
 func parseSchema(info []StructInfo) (Schema, error) {
-	validatorSet := make(map[string]struct{})
+	uniqRuleSet := make(map[string]struct{})
 	rules := make([]SchemaRule, 0, 10)
 	for _, stct := range info {
 		for _, field := range stct.fieldList {
@@ -87,33 +93,47 @@ func parseSchema(info []StructInfo) (Schema, error) {
 					return Schema{}, err
 				}
 				rules = append(rules, rule)
-				validatorSet[rule.Name] = struct{}{}
+				uniqRuleSet[rule.Name] = struct{}{}
 			}
 		}
 	}
 
 	schema := Schema{
 		rules:      rules,
-		validators: make([]string, len(validatorSet)),
+		validators: make([]string, 0, len(uniqRuleSet)),
 	}
-	for k := range maps.Keys(validatorSet) {
+	for k := range maps.Keys(uniqRuleSet) {
 		schema.validators = append(schema.validators, k)
 	}
 	return schema, nil
 }
 
 func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
+	seprator := "=" // rule is either presence or value constraint or range.
+	if strings.IndexRune(rawRule, ':') != -1 {
+		seprator = ":" // rule is conditional.
+	}
+
 	var rule SchemaRule
-	kv := strings.SplitN(rawRule, "=", 1)
+	kv := strings.SplitN(rawRule, seprator, 2)
 	if len(kv) < 0 || len(kv) > 2 {
 		return rule, fmt.Errorf("invalid rule format: %v", rawRule)
 	}
+
 	field1 := f.name
 	if len(kv) == 1 /* Presense rule */ {
-		rule = SchemaRule{
-			Name:   kv[0],
-			Type:   rulePresence,
-			Field1: field1,
+		if slices.Contains(presetValConstRules, kv[0]) {
+			rule = SchemaRule{
+				Name:   kv[0],
+				Type:   ruleValueConstraint,
+				Field1: field1,
+			}
+		} else {
+			rule = SchemaRule{
+				Name:   kv[0],
+				Type:   rulePresence,
+				Field1: field1,
+			}
 		}
 	} else if len(kv) == 2 {
 		if strings.Contains(kv[1], ",") /* range */ {
@@ -122,8 +142,8 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 					Name:   kv[0],
 					Type:   ruleRange,
 					Field1: field1,
-					Cond1:  &Value{min},
-					Cond2:  &Value{max},
+					Cond1:  parseValue(f.typ, min),
+					Cond2:  parseValue(f.typ, max),
 				}
 			}
 		} else if strings.Contains(kv[1], "=") /* Conditional rule */ {
@@ -133,17 +153,61 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 					Type:   ruleConditional,
 					Field1: field1,
 					Field2: field2,
-					Cond1:  &Value{cond},
+					Cond1:  parseValue(f.typ, cond),
 				}
 			}
 		} else /* Value constraint */ {
-			rule = SchemaRule{
-				Name:   kv[0],
-				Type:   ruleValueConstraint,
-				Field1: field1,
-				Cond1:  &Value{kv[1]},
+			if seprator == ":" {
+				rule = SchemaRule{
+					Name:   kv[0],
+					Type:   ruleConditional,
+					Field1: field1,
+					Field2: kv[1],
+				}
+			} else if seprator == "=" {
+				rule = SchemaRule{
+					Name:   kv[0],
+					Type:   ruleValueConstraint,
+					Field1: field1,
+					Cond1:  parseValue(f.typ, kv[1]),
+				}
 			}
 		}
 	}
+	if rule.Name == "" {
+		return rule, fmt.Errorf("invalid rule format: %v", rawRule)
+	}
 	return rule, nil
+}
+
+func parseValue(t types.BasicInfo, v string) *Value {
+	switch t {
+	case types.IsString:
+		if vv, err := cast.ToInt64E(v); err != nil {
+			return &Value{Value: v, Type: t}
+		} else if err == nil {
+			return &Value{Value: vv, Type: t}
+		}
+	case types.IsInteger:
+		if vv, err := cast.ToInt64E(v); err != nil {
+			return &Value{Value: v, Type: t}
+		} else if err == nil {
+			return &Value{Value: vv, Type: t}
+		}
+	case types.IsUnsigned:
+		if vv, err := cast.ToUint64E(v); err != nil {
+			return &Value{Value: v, Type: t}
+		} else if err == nil {
+			return &Value{Value: vv, Type: t}
+		}
+	case types.IsFloat:
+		if vv, err := cast.ToFloat64E(v); err != nil {
+			return &Value{Value: v, Type: t}
+		} else if err == nil {
+			return &Value{Value: vv, Type: t}
+		}
+	default:
+		return &Value{Value: v, Type: t}
+	}
+	return nil
 }

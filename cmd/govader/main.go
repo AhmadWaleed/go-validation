@@ -75,13 +75,17 @@ func main() {
 		log.Fatalf("invalid schema: %s", err)
 	}
 
-	tmpl := &CodeTemplate{
-		PackageName: pkg.Package.Name,
-		Messages:    LoadLocale(*locale),
-		Schema:      schema,
-	}
-
 	buf := new(bytes.Buffer) // Accumulated output.
+	g := &Generator{
+		w:              buf,
+		Schema:         schema,
+		Messages:       LoadLocale(*locale),
+		GeneratedRules: make(map[string]bool),
+	}
+	tmpl := &Template{
+		PackageName: pkg.Package.Name,
+		Generator:   g,
+	}
 	tmpl.Render(context.Background(), buf)
 
 	// Format the output.

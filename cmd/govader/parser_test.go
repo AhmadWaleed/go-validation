@@ -27,7 +27,7 @@ func Test__parseSchema(t *testing.T) {
 				},
 			},
 			want: Schema{
-				rules: []SchemaRule{
+				Rules: []SchemaRule{
 					{Name: "required", Type: rulePresence, Field1: "ID"},
 					{Name: "required", Type: rulePresence, Field1: "Name"},
 				},
@@ -48,7 +48,7 @@ func Test__parseSchema(t *testing.T) {
 				},
 			},
 			want: Schema{
-				rules: []SchemaRule{
+				Rules: []SchemaRule{
 					{Name: "min", Type: ruleValueConstraint, Field1: "ID", Cond1: &Value{Value: int64(1), Type: types.IsInteger}},
 					{Name: "size", Type: ruleValueConstraint, Field1: "Name", Cond1: &Value{Value: int64(10), Type: types.IsInteger}},
 					{Name: "regexp", Type: ruleValueConstraint, Field1: "Age", Cond1: &Value{Value: "^[0-9]*$", Type: types.IsString}},
@@ -68,7 +68,7 @@ func Test__parseSchema(t *testing.T) {
 				},
 			},
 			want: Schema{
-				rules: []SchemaRule{
+				Rules: []SchemaRule{
 					{
 						Name:   "between",
 						Type:   ruleRange,
@@ -91,7 +91,7 @@ func Test__parseSchema(t *testing.T) {
 				},
 			},
 			want: Schema{
-				rules: []SchemaRule{
+				Rules: []SchemaRule{
 					{Name: "required_if", Type: ruleConditional, Field1: "ID", Field2: "Name", Cond1: &Value{Value: "John"}},
 					{Name: "different", Type: ruleConditional, Field1: "ID", Field2: "ID2"},
 					{Name: "same", Type: ruleConditional, Field1: "ID", Field2: "ID3"},
@@ -108,7 +108,7 @@ func Test__parseSchema(t *testing.T) {
 				assert.NoError(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.want.rules, got.rules)
+				assert.Equal(t, tt.want.Rules, got.Rules)
 				for _, v := range tt.want.validators {
 					assert.Contains(t, got.validators, v)
 				}

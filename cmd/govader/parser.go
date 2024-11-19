@@ -22,7 +22,7 @@ type FieldInfo struct {
 }
 
 type Schema struct {
-	rules      []SchemaRule
+	Rules      []SchemaRule
 	validators []string
 }
 
@@ -31,16 +31,18 @@ type Value struct {
 	Value any
 }
 
-func (v Value) toString() string {
-	switch v.Value.(type) {
-	case float32, float64:
-		v := cast.ToString(v.Value)
-		if v == "0.0" {
-			return "0"
-		}
-		return v
+func (v Value) TypeString() string {
+	switch v.Type {
+	case types.IsInteger:
+		return "int64"
+	case types.IsString:
+		return "string"
+	case types.IsFloat:
+		return "float64"
+	case types.IsUnsigned:
+		return "uint64"
 	default:
-		return cast.ToString(v.Value)
+		return "string"
 	}
 }
 
@@ -99,7 +101,7 @@ func parseSchema(info []StructInfo) (Schema, error) {
 	}
 
 	schema := Schema{
-		rules:      rules,
+		Rules:      rules,
 		validators: make([]string, 0, len(uniqRuleSet)),
 	}
 	for k := range maps.Keys(uniqRuleSet) {
@@ -127,12 +129,14 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 				Name:   kv[0],
 				Type:   ruleValueConstraint,
 				Field1: field1,
+				Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
 			}
 		} else {
 			rule = SchemaRule{
 				Name:   kv[0],
 				Type:   rulePresence,
 				Field1: field1,
+				Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
 			}
 		}
 	} else if len(kv) == 2 {

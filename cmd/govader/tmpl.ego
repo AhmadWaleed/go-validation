@@ -23,52 +23,51 @@ import (
 // conditional	    required_if:Name=John	A rule that depends on another field
 // range	between:1,1000	A rule that specifies a range of values
 type (
-	_Gov_PresenceValidator        func(field string, value any) error
-	_Gov_ValueConstraintValidator func(field string, value any, cond any) error
-	_Gov_RangeValidator           func(field string, value any, min any, max any) error
-	_Gov_ConditionalValidator     func(field1 string, value1 any, field2 string, value2 any, cond any) error
+	_Gov_PresenceValidator[T any]			func(field string, value T) error
+	_Gov_ValueConstraintValidator[T any]	func(field string, value T, cond T) error
+	_Gov_RangeValidator[T any]           	func(field string, value T, min T, max T) error
+	_Gov_ConditionalValidator     			func(field1 string, value1 any, field2 string, value2 any, cond any) error
 )
-
 
 type _Gov_Rule interface {
 	Validate() error
 }
 
 // presence	        required	            A rule without additional values
-type _Gov_RulePresence struct {
+type _Gov_RulePresence [T any]struct {
 	Field     string
-	Value     any
-	Validator _Gov_PresenceValidator
+	Value     T
+	Validator _Gov_PresenceValidator[T]
 }
 
-func (r _Gov_RulePresence) Validate() error {
+func (r _Gov_RulePresence[T]) Validate() error {
 	return r.Validator(r.Field, r.Value)
 }
 
 // value_constraint	max:1000	            A rule with a single key-value pair
-type _Gov_RuleValueConstraint struct {
+type _Gov_RuleValueConstraint [T any]struct {
 	Name      string
 	Field     string
-	Value     any
-	Cond      any
-	Validator _Gov_ValueConstraintValidator
+	Value     T
+	Cond      T
+	Validator _Gov_ValueConstraintValidator[T]
 }
 
-func (r _Gov_RuleValueConstraint) Validate() error {
+func (r _Gov_RuleValueConstraint[T]) Validate() error {
 	return r.Validator(r.Field, r.Value, r.Cond)
 }
 
 // range	between:1,1000	A rule that specifies a range of values
-type _Gov_RuleRange struct {
+type _Gov_RuleRange[T any] struct {
 	Name      string
 	Field     string
-	Value     any
-	Min       any
-	Max       any
-	Validator _Gov_RangeValidator
+	Value     T
+	Min       T
+	Max       T
+	Validator _Gov_RangeValidator[T]
 }
 
-func (r _Gov_RuleRange) Validate() error {
+func (r _Gov_RuleRange[T]) Validate() error {
 	return r.Validator(r.Field, r.Value, r.Min, r.Max)
 }
 

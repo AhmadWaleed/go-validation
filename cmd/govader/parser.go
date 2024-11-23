@@ -22,6 +22,7 @@ type FieldInfo struct {
 }
 
 type Schema struct {
+	Type       StructInfo
 	Rules      []SchemaRule
 	validators []string
 }
@@ -64,50 +65,47 @@ type SchemaRule struct {
 	Cond2  *Value
 }
 
-var (
-	// e.g: {RequiredIf: [Same, Required]}
-	validatorRuleSet = map[string][]string{
-		"required":         nil,
-		"required_if":      {"required", "same"},
-		"required_with":    nil,
-		"required_without": nil,
-		"min":              nil,
-		"max":              nil,
-		"between":          nil,
-		"same":             nil,
-		"different":        nil,
-		"regexp":           nil,
-		"email":            nil,
+func (r SchemaRule) FuncName() string {
+	if r.Type == ruleConditional {
+		return fmt.Sprintf("_Gov_%s", r.Name)
 	}
+	return fmt.Sprintf("_Gov_%s_%s", r.Name, r.Cond1.TypeString())
+}
+
+var (
 	// presetValConstRules contains list of predefined value constraint rules.
 	presetValConstRules = []string{"email"}
 )
 
-func parseSchema(info []StructInfo) (Schema, error) {
+func parseSchema(info []StructInfo) ([]Schema, error) {
+	schemas := make([]Schema, 0, len(info))
 	uniqRuleSet := make(map[string]struct{})
-	rules := make([]SchemaRule, 0, 10)
+
 	for _, stct := range info {
+		rules := make([]SchemaRule, 0, 10)
 		for _, field := range stct.fieldList {
 			ruleset := strings.Split(field.tag, ";")
 			for _, rulestr := range ruleset {
 				rule, err := parseRule(field, rulestr)
 				if err != nil {
-					return Schema{}, err
+					return nil, err
 				}
 				rules = append(rules, rule)
 				uniqRuleSet[rule.Name] = struct{}{}
 			}
 		}
+		schema := Schema{
+			Type:       stct,
+			Rules:      rules,
+			validators: make([]string, 0, len(uniqRuleSet)),
+		}
+		for k := range maps.Keys(uniqRuleSet) {
+			schema.validators = append(schema.validators, k)
+		}
+		schemas = append(schemas, schema)
 	}
 
-	schema := Schema{
-		Rules:      rules,
-		validators: make([]string, 0, len(uniqRuleSet)),
-	}
-	for k := range maps.Keys(uniqRuleSet) {
-		schema.validators = append(schema.validators, k)
-	}
-	return schema, nil
+	return schemas, nil
 }
 
 func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
@@ -177,9 +175,6 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 				}
 			}
 		}
-	}
-	if rule.Name == "" {
-		return rule, fmt.Errorf("invalid rule format: %v", rawRule)
 	}
 	return rule, nil
 }

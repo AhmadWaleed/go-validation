@@ -7,7 +7,7 @@ import (
 
 type Generator struct {
 	w              *bytes.Buffer // Accumulated output.
-	Schema         Schema
+	Schemas        []Schema
 	Messages       map[string]string
 	GeneratedRules map[string]bool // To keep track of generated rules to avoid duplicates.
 }
@@ -53,12 +53,18 @@ func (g *Generator) Generate() {
 	g.Printf("\n\n")
 
 	// Generate rules.
-	for _, rule := range g.Schema.Rules {
-		if _, ok := g.GeneratedRules[rule.Name]; !ok {
-			g.GenRule(rule)
-			g.Printf("\n")
-			g.GeneratedRules[rule.Name] = true
+	for _, schema := range g.Schemas {
+		for _, rule := range schema.Rules {
+			if _, ok := g.GeneratedRules[rule.FuncName()]; !ok {
+				g.GenRule(rule)
+				g.Printf("\n")
+				g.GeneratedRules[rule.FuncName()] = true
+			}
 		}
+	}
+
+	for _, schema := range g.Schemas {
+		g.GenSchmaValdation(schema)
 	}
 }
 
@@ -187,18 +193,19 @@ func (g *Generator) GenDifferentRule(rule SchemaRule) {
 
 func (g *Generator) GenBetweenRule(rule SchemaRule) {
 	typ := rule.Cond1.TypeString()
-	g.Printf("func _Gov_%s_%s(field string, value %s) error {\n", rule.Name, typ, typ)
+	g.Printf("func _Gov_%s_%s(field string, value, min, max %s) error {\n", rule.Name, typ, typ)
+	g.Printf("\tn, m := cast.ToString(min), cast.ToString(max)\n")
 	switch typ {
 	case "int64":
-		g.Printf("\tif value < %d || value > %d {\n", rule.Cond1.Value, rule.Cond2.Value)
+		g.Printf("\tif value < min || value > max {\n")
 	case "unit64":
-		g.Printf("\tif value <= %d || value >= %d {\n", rule.Cond1.Value, rule.Cond2.Value)
+		g.Printf("\tif value <= min || value >= max {\n")
 	case "float64":
-		g.Printf("\tif value < %f || value > %f {\n", rule.Cond1.Value, rule.Cond2.Value)
+		g.Printf("\tif value < min || value > max {\n")
 	case "string":
-		g.Printf("\tif len(value) < %d || len(value) > %d {\n", rule.Cond1.Value, rule.Cond2.Value)
+		g.Printf("\tif len(value) < min || len(value) > max {\n")
 	}
-	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
+	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", n, m)\n", rule.Name)
 	g.Printf("\t}\n")
 	g.Printf("\treturn nil\n")
 	g.Printf("}\n")
@@ -206,7 +213,7 @@ func (g *Generator) GenBetweenRule(rule SchemaRule) {
 
 func (g *Generator) GenMinRule(rule SchemaRule) {
 	typ := rule.Cond1.TypeString()
-	g.Printf("func _Gov_%s_%s(field string, value %s) error {\n", rule.Name, typ, typ)
+	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
 	case "int64":
 		g.Printf("\tif value < %d {\n", rule.Cond1.Value)
@@ -217,7 +224,7 @@ func (g *Generator) GenMinRule(rule SchemaRule) {
 	case "string":
 		g.Printf("\tif len(value) < %d {\n", rule.Cond1.Value)
 	}
-	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
+	g.Printf("\t\treturn _Gov_Error(\"%s\", field, cast.ToString(cond), \"\", \"\")\n", rule.Name)
 	g.Printf("\t}\n")
 	g.Printf("\treturn nil\n")
 	g.Printf("}\n")
@@ -225,7 +232,7 @@ func (g *Generator) GenMinRule(rule SchemaRule) {
 
 func (g *Generator) GenMaxRule(rule SchemaRule) {
 	typ := rule.Cond1.TypeString()
-	g.Printf("func _Gov_%s_%s(field string, value %s) error {\n", rule.Name, typ, typ)
+	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
 	case "int64":
 		g.Printf("\tif value > %d {\n", rule.Cond1.Value)
@@ -236,7 +243,7 @@ func (g *Generator) GenMaxRule(rule SchemaRule) {
 	case "string":
 		g.Printf("\tif len(value) > %d {\n", rule.Cond1.Value)
 	}
-	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
+	g.Printf("\t\treturn _Gov_Error(\"%s\", field, cast.ToString(cond), \"\", \"\")\n", rule.Name)
 	g.Printf("\t}\n")
 	g.Printf("\treturn nil\n")
 	g.Printf("}\n")
@@ -244,7 +251,7 @@ func (g *Generator) GenMaxRule(rule SchemaRule) {
 
 func (g *Generator) GenSizeRule(rule SchemaRule) {
 	typ := rule.Cond1.TypeString()
-	g.Printf("func _Gov_%s_%s(field string, value %s) error {\n", rule.Name, typ, typ)
+	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
 	case "int64":
 		g.Printf("\tif value != %d {\n", rule.Cond1.Value)
@@ -255,14 +262,14 @@ func (g *Generator) GenSizeRule(rule SchemaRule) {
 	case "string":
 		g.Printf("\tif len(value) != %d {\n", rule.Cond1.Value)
 	}
-	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
+	g.Printf("\t\treturn _Gov_Error(\"%s\", field, cast.ToString(value), \"\", \"\")\n", rule.Name)
 	g.Printf("\t}\n")
 	g.Printf("\treturn nil\n")
 	g.Printf("}\n")
 }
 
 func (g *Generator) GenRegexpRule(rule SchemaRule) {
-	g.Printf("func _Gov_%s_string(field string, value string) error {\n", rule.Name)
+	g.Printf("func _Gov_%s_string(field string, value string, cond string) error {\n", rule.Name)
 	g.Printf("\tpattern := \"%s\"\n", rule.Cond1.Value)
 	g.Printf("\tre := regexp.MustCompile(pattern)\n")
 	g.Printf("\tif ok := re.MatchString(value); !ok {\n")
@@ -273,11 +280,113 @@ func (g *Generator) GenRegexpRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenEmailRule(rule SchemaRule) {
-	g.Printf("func _Gov_%s_string(field string, value string) error {\n", rule.Name)
+	g.Printf("func _Gov_%s_string(field string, value string, cond %s) error {\n", rule.Name, rule.Cond1.TypeString())
 	g.Printf("\tatIndex, dotIndex := strings.Index(value, \"@\"), strings.LastIndex(value, \".\")\n")
 	g.Printf("\tif atIndex < 1 || dotIndex < atIndex+2 || dotIndex+2 >= len(value) {\n")
 	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
 	g.Printf("\t}\n")
 	g.Printf("\treturn nil\n")
+	g.Printf("}\n")
+}
+
+func (g *Generator) GenSchmaValdation(schema Schema) {
+	// Define the schema struct type
+	g.Printf("type %sSchema struct {\n", schema.Type.name)
+	g.Printf("\trules []_Gov_Rule\n")
+	g.Printf("}\n\n")
+
+	// Define the constructor function for the schema
+	g.Printf("func New%sSchema(u %s) %sSchema {\n", schema.Type.name, schema.Type.name, schema.Type.name)
+	g.Printf("\treturn %sSchema{\n", schema.Type.name)
+	g.Printf("\t\trules: []_Gov_Rule{\n")
+
+	for _, rule := range schema.Rules {
+		switch rule.Type {
+		case rulePresence:
+			// Generate presence rule
+			g.Printf("\t\t\t_Gov_RulePresence[%s]{\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t\tField:     \"%s\",\n", rule.Field1)
+			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeString(), rule.Field1)
+			g.Printf("\t\t\t\tValidator: _Gov_required_%s,\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t},\n")
+
+		case ruleValueConstraint:
+			// Generate value constraint rule (e.g., min, max, regexp)
+			typ := rule.Cond1.TypeString()
+			if rule.Name == "regexp" {
+				typ = "string"
+			}
+			g.Printf("\t\t\t_Gov_RuleValueConstraint[%s]{\n", typ)
+			g.Printf("\t\t\t\tField:     \"%s\",\n", rule.Field1)
+			if rule.Name == "regexp" {
+				g.Printf("\t\t\t\tValue:     cast.ToString(u.%s),\n", rule.Field1)
+			} else {
+				g.Printf("\t\t\t\tValue:     %s(u.%s),\n", typ, rule.Field1)
+			}
+			if rule.Cond1 != nil {
+				// Handle condition only if not nil, handle non presetValConstRules.
+				if rule.Name == "regexp" {
+					g.Printf("\t\t\t\tCond:      `%s`,\n", rule.Cond1.Value)
+				} else {
+					if rule.Cond1.Value != nil {
+						g.Printf("\t\t\t\tCond:      %v,\n", rule.Cond1.Value)
+					}
+				}
+			}
+			g.Printf("\t\t\t\tValidator: _Gov_%s_%s,\n", rule.Name, typ)
+			g.Printf("\t\t\t},\n")
+
+		case ruleRange:
+			// Generate range rule (e.g., between)
+			g.Printf("\t\t\t_Gov_RuleRange[%s]{\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t\tField:     \"%s\",\n", rule.Field1)
+			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeString(), rule.Field1)
+			if rule.Cond1 != nil {
+				g.Printf("\t\t\t\tMin:       %v,\n", rule.Cond1.Value)
+			}
+			if rule.Cond2 != nil {
+				g.Printf("\t\t\t\tMax:       %v,\n", rule.Cond2.Value)
+			}
+			g.Printf("\t\t\t\tValidator: _Gov_between_%s,\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t},\n")
+
+		case ruleConditional:
+			// Generate conditional rule
+			g.Printf("\t\t\t_Gov_RuleConditional{\n")
+			g.Printf("\t\t\t\tField1:    \"%s\",\n", rule.Field1)
+			g.Printf("\t\t\t\tField2:    \"%s\",\n", rule.Field2)
+			g.Printf("\t\t\t\tValue1:    u.%s,\n", rule.Field1)
+			g.Printf("\t\t\t\tValue2:    u.%s,\n", rule.Field2)
+			if rule.Cond1 != nil {
+				g.Printf("\t\t\t\tCond:      \"%v\",\n", rule.Cond1.Value)
+			}
+			g.Printf("\t\t\t\tValidator: _Gov_%s,\n", rule.Name)
+			g.Printf("\t\t\t},\n")
+		}
+	}
+
+	// Close the rules slice and return statement
+	g.Printf("\t\t},\n")
+	g.Printf("\t}\n")
+	g.Printf("}\n")
+	g.Printf("\n")
+
+	// func (s UserSchema) Validate() (messages []string) {
+	// 	for _, rule := range s.rules {
+	// 		if err := rule.Validate(); err != nil {
+	// 			messages = append(messages, err.Error())
+	// 		}
+	// 	}
+	// 	return messages
+	// }
+
+	// Generate the Validate method for the schema.
+	g.Printf("func (s %sSchema) Validate() (messages []string) {\n", schema.Type.name)
+	g.Printf("\tfor _, rule := range s.rules {\n")
+	g.Printf("\t\tif err := rule.Validate(); err != nil {\n")
+	g.Printf("\t\t\tmessages = append(messages, err.Error())\n")
+	g.Printf("\t\t}\n")
+	g.Printf("\t}\n")
+	g.Printf("\treturn messages\n")
 	g.Printf("}\n")
 }

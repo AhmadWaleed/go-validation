@@ -70,7 +70,7 @@ func main() {
 		return
 	}
 
-	schema, err := parseSchema(typeInfo)
+	schemas, err := parseSchema(typeInfo)
 	if err != nil {
 		log.Fatalf("invalid schema: %s", err)
 	}
@@ -78,7 +78,7 @@ func main() {
 	buf := new(bytes.Buffer) // Accumulated output.
 	g := &Generator{
 		w:              buf,
-		Schema:         schema,
+		Schemas:        schemas,
 		Messages:       LoadLocale(*locale),
 		GeneratedRules: make(map[string]bool),
 	}
@@ -129,6 +129,7 @@ func findTypeValues(typeName string, pkg *Package) []StructInfo {
 		f.typeName = typeName
 		ast.Inspect(f.file, f.scanTypeStruct)
 		values = append(values, f.values...)
+		f.values = nil
 	}
 	return values
 }
@@ -170,12 +171,14 @@ func (f *File) scanTypeStruct(n ast.Node) bool {
 			if field.Tag != nil {
 				tag = reflect.StructTag(field.Tag.Value[1 : len(field.Tag.Value)-1]).Get("gov")
 			}
+			if tag == "" {
+				continue
+			}
 			value.fieldList = append(value.fieldList, FieldInfo{
 				name: iden.Name,
 				tag:  tag,
 				typ:  basicType,
 			})
-
 		}
 	}
 	f.values = append(f.values, value)

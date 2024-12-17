@@ -122,14 +122,15 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 
 	if len(kv) == 1 /* Presense rule */ {
 		rule = parsePresenceRule(f, kv[0])
-	} else if len(kv) == 2 {
-		if strings.Contains(kv[1], ",") /* range */ {
-			rule = parseRangeRule(f, kv[0], kv[1])
-		} else if strings.Contains(kv[1], "=") || seprator == ":" /* Conditional rule */ {
-			rule = parseConditionalRule(f, kv[0], kv[1])
-		} else /* Value constraint */ {
-			rule = parseValueConstraintRule(f, kv[0], kv[1])
-		}
+		return rule, nil
+	}
+
+	if strings.Contains(kv[1], ",") /* range */ {
+		rule = parseRangeRule(f, kv[0], kv[1])
+	} else if strings.Contains(kv[1], "=") || seprator == ":" /* Conditional rule */ {
+		rule = parseConditionalRule(f, kv[0], kv[1])
+	} else /* Value constraint */ {
+		rule = parseValueConstraintRule(f, kv[0], kv[1])
 	}
 
 	return rule, nil

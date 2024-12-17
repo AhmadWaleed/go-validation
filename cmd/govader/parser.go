@@ -120,63 +120,74 @@ func parseRule(f FieldInfo, rawRule string) (SchemaRule, error) {
 		return rule, fmt.Errorf("invalid rule format: %v", rawRule)
 	}
 
-	field1 := f.name
 	if len(kv) == 1 /* Presense rule */ {
-		if slices.Contains(presetValConstRules, kv[0]) {
-			rule = SchemaRule{
-				Name:   kv[0],
-				Type:   ruleValueConstraint,
-				Field1: field1,
-				Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
-			}
-		} else {
-			rule = SchemaRule{
-				Name:   kv[0],
-				Type:   rulePresence,
-				Field1: field1,
-				Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
-			}
-		}
+		rule = parsePresenceRule(f, kv[0])
 	} else if len(kv) == 2 {
 		if strings.Contains(kv[1], ",") /* range */ {
-			if min, max, ok := strings.Cut(kv[1], ","); ok {
-				rule = SchemaRule{
-					Name:   kv[0],
-					Type:   ruleRange,
-					Field1: field1,
-					Cond1:  parseValue(f.typ, min),
-					Cond2:  parseValue(f.typ, max),
-				}
-			}
-		} else if strings.Contains(kv[1], "=") /* Conditional rule */ {
-			if field2, cond, ok := strings.Cut(kv[1], "="); ok {
-				rule = SchemaRule{
-					Name:   kv[0],
-					Type:   ruleConditional,
-					Field1: field1,
-					Field2: field2,
-					Cond1:  parseValue(f.typ, cond),
-				}
-			}
+			rule = parseRangeRule(f, kv[0], kv[1])
+		} else if strings.Contains(kv[1], "=") || seprator == ":" /* Conditional rule */ {
+			rule = parseConditionalRule(f, kv[0], kv[1])
 		} else /* Value constraint */ {
-			if seprator == ":" {
-				rule = SchemaRule{
-					Name:   kv[0],
-					Type:   ruleConditional,
-					Field1: field1,
-					Field2: kv[1],
-				}
-			} else if seprator == "=" {
-				rule = SchemaRule{
-					Name:   kv[0],
-					Type:   ruleValueConstraint,
-					Field1: field1,
-					Cond1:  parseValue(f.typ, kv[1]),
-				}
-			}
+			rule = parseValueConstraintRule(f, kv[0], kv[1])
 		}
 	}
+
 	return rule, nil
+}
+
+func parsePresenceRule(f FieldInfo, ruleName string) SchemaRule {
+	if slices.Contains(presetValConstRules, ruleName) {
+		return SchemaRule{
+			Name:   ruleName,
+			Type:   ruleValueConstraint,
+			Field1: f.name,
+			Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
+		}
+	}
+	return SchemaRule{
+		Name:   ruleName,
+		Type:   rulePresence,
+		Field1: f.name,
+		Cond1:  &Value{Type: f.typ}, // We only need type to generate typed rule.
+	}
+}
+
+func parseRangeRule(f FieldInfo, ruleName, ruleValue string) SchemaRule {
+	min, max, _ := strings.Cut(ruleValue, ",")
+	return SchemaRule{
+		Name:   ruleName,
+		Type:   ruleRange,
+		Field1: f.name,
+		Cond1:  parseValue(f.typ, min),
+		Cond2:  parseValue(f.typ, max),
+	}
+}
+
+func parseConditionalRule(f FieldInfo, ruleName, ruleValue string) SchemaRule {
+	if field2, cond, ok := strings.Cut(ruleValue, "="); ok {
+		return SchemaRule{
+			Name:   ruleName,
+			Type:   ruleConditional,
+			Field1: f.name,
+			Field2: field2,
+			Cond1:  parseValue(f.typ, cond),
+		}
+	}
+	return SchemaRule{
+		Name:   ruleName,
+		Type:   ruleConditional,
+		Field1: f.name,
+		Field2: ruleValue,
+	}
+}
+
+func parseValueConstraintRule(f FieldInfo, ruleName, ruleValue string) SchemaRule {
+	return SchemaRule{
+		Name:   ruleName,
+		Type:   ruleValueConstraint,
+		Field1: f.name,
+		Cond1:  parseValue(f.typ, ruleValue),
+	}
 }
 
 func parseValue(t types.BasicInfo, v string) *Value {

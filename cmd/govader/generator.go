@@ -1,15 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"io"
+	"slices"
 )
 
 type Generator struct {
-	w              *bytes.Buffer // Accumulated output.
+	w              io.Writer // Accumulated output.
 	Schemas        []Schema
 	Messages       map[string]string
 	GeneratedRules map[string]bool // To keep track of generated rules to avoid duplicates.
+	Imports        []string
 }
 
 func (g *Generator) Printf(format string, args ...interface{}) {
@@ -25,6 +27,7 @@ func (g *Generator) Generate() {
 	g.Printf("}\n")
 
 	// Generate error func to return rule error messages.
+	g.AddImport("errors", "strings")
 	g.Printf(`func _Gov_Error(key, field1, value1, field2, value2 string) error {
 		var msg string
 		for _, word := range strings.Split(_Gov_Schema_message[key], " ") {
@@ -65,6 +68,23 @@ func (g *Generator) Generate() {
 
 	for _, schema := range g.Schemas {
 		g.GenSchmaValdation(schema)
+	}
+}
+
+func (g *Generator) GenImport() {
+	// Run Generate to fill import.
+	// Temprorily replace original writer with
+	// io.Discard just to fill the imports.
+	w := g.w
+	g.w = io.Discard
+	g.Generate()
+
+	// Restore Generator original state.
+	g.w = w
+	g.GeneratedRules = make(map[string]bool)
+
+	for _, imp := range g.Imports {
+		g.Printf("\t\"%s\"\n", imp)
 	}
 }
 
@@ -138,6 +158,7 @@ func (g *Generator) GenConditionalRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenRequiredIfRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	g.Printf("func _Gov_%s(field1 string, value1 any, field2 string, value2 any, cond any) error {\n", rule.Name)
 	g.Printf("\tv1, v2, c := cast.ToString(value1), cast.ToString(value2), cast.ToString(cond)\n")
 	g.Printf("\tif v2 == c {\n")
@@ -150,6 +171,7 @@ func (g *Generator) GenRequiredIfRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenRequiredWithRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	g.Printf("func _Gov_%s(field1 string, value1 any, field2 string, value2 any, cond any) error {\n", rule.Name)
 	g.Printf("\tv1, v2 := cast.ToString(value1), cast.ToString(value2)\n")
 	g.Printf("\tif v2 != \"\" && v2 != \"0\" {\n")
@@ -162,6 +184,7 @@ func (g *Generator) GenRequiredWithRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenRequiredWithoutRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	g.Printf("func _Gov_%s(field1 string, value1 any, field2 string, value2 any, cond any) error {\n", rule.Name)
 	g.Printf("\tv1, v2 := cast.ToString(value1), cast.ToString(value2)\n")
 	g.Printf("\tif v2 == \"\" || v2 == \"0\" {\n")
@@ -174,6 +197,7 @@ func (g *Generator) GenRequiredWithoutRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenSameRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	g.Printf("func _Gov_%s(field1 string, value1 any, field2 string, value2 any, cond any) error {\n", rule.Name)
 	g.Printf("\tv1, v2 := cast.ToString(value1), cast.ToString(value2)\n")
 	g.Printf("\tif v1 != v2 {\n")
@@ -184,6 +208,7 @@ func (g *Generator) GenSameRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenDifferentRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	g.Printf("func _Gov_%s(field1 string, value1 any, field2 string, value2 any, cond any) error {\n", rule.Name)
 	g.Printf("\tv1, v2 := cast.ToString(value1), cast.ToString(value2)\n")
 	g.Printf("\tif v1 == v2 {\n")
@@ -194,6 +219,7 @@ func (g *Generator) GenDifferentRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenBetweenRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	typ := rule.Cond1.TypeString()
 	g.Printf("func _Gov_%s_%s(field string, value, min, max %s) error {\n", rule.Name, typ, typ)
 	g.Printf("\tn, m := cast.ToString(min), cast.ToString(max)\n")
@@ -214,6 +240,7 @@ func (g *Generator) GenBetweenRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenMinRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	typ := rule.Cond1.TypeString()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
@@ -233,6 +260,7 @@ func (g *Generator) GenMinRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenMaxRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	typ := rule.Cond1.TypeString()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
@@ -252,6 +280,7 @@ func (g *Generator) GenMaxRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenSizeRule(rule SchemaRule) {
+	g.AddImport("github.com/spf13/cast")
 	t := rule.Cond1.TypeString()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, t, t, t)
 	g.Printf("\tv := cast.ToString(value)\n")
@@ -263,6 +292,7 @@ func (g *Generator) GenSizeRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenRegexpRule(rule SchemaRule) {
+	g.AddImport("regexp")
 	g.Printf("func _Gov_%s_string(field string, value string, cond string) error {\n", rule.Name)
 	g.Printf("\tpattern := \"%s\"\n", rule.Cond1.Value)
 	g.Printf("\tre := regexp.MustCompile(pattern)\n")
@@ -374,4 +404,12 @@ func (g *Generator) GenSchmaValdation(schema Schema) {
 	g.Printf("\t}\n")
 	g.Printf("\treturn messages\n")
 	g.Printf("}\n")
+}
+
+func (g *Generator) AddImport(imports ...string) {
+	for _, imp := range imports {
+		if !slices.Contains(g.Imports, imp) {
+			g.Imports = append(g.Imports, imp)
+		}
+	}
 }

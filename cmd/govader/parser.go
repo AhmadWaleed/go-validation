@@ -193,7 +193,7 @@ func parseValue(t types.BasicInfo, v string) *Value {
 	case types.IsString:
 		if vv, err := cast.ToInt64E(v); err != nil {
 			return &Value{Value: v, Type: t}
-		} else if err == nil {
+		} else {
 			return &Value{Value: vv, Type: t}
 		}
 	case types.IsInteger:
@@ -217,5 +217,4 @@ func parseValue(t types.BasicInfo, v string) *Value {
 	default:
 		return &Value{Value: v, Type: t}
 	}
-	return nil
 }

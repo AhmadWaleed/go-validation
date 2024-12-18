@@ -26,5 +26,19 @@
     "between": ":field1 يجب أن يكون الحقل بين :field2 و :value2.",
     "regexp": ":field الحقل لا يتطابق مع الصيغة المطلوبة :value.",
     "email": ":field يجب أن يكون الحقل عنوان بريد إلكتروني صالح."
+  },
+  "ur": {
+    "required": ":field فیلڈ درکار ہے۔",
+    "required_if": ":field1 فیلڈ ضروری ہے جب :field2 :value2 ہو۔",
+    "required_with": ":field1 فیلڈ ضروری ہے جب :field2 موجود ہو۔",
+    "required_without": ":field1 فیلڈ ضروری ہے جب :field2 موجود نہ ہو۔",
+    "min": ":field فیلڈ کم از کم :value ہونا چاہیے۔",
+    "max": ":field فیلڈ :value سے زیادہ نہیں ہو سکتا۔",
+    "size": ":field فیلڈ کا سائز :value ہونا چاہیے۔",
+    "same": ":field1 فیلڈ کو :field2 فیلڈ سے مماثل ہونا چاہیے۔",
+    "different": ":field1 فیلڈ کو :field2 فیلڈ سے مختلف ہونا چاہیے۔",
+    "between": ":field1 فیلڈ کو :field2 اور :value2 کے درمیان ہونا چاہیے۔",
+    "regexp": ":field فیلڈ مطلوبہ فارمیٹ :value سے مطابقت نہیں رکھتا۔",
+    "email": ":field فیلڈ ایک درست ای میل پتہ ہونا چاہیے۔"
   }
 }

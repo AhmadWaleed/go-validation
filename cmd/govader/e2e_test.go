@@ -65,14 +65,13 @@ var exe struct {
 }
 
 func govaderPath(t *testing.T) string {
-	return "govader" // TODO: return dynamic path from host.
-	// exe.once.Do(func() {
-	// 	exe.path, exe.err = os.Executable()
-	// })
-	// if exe.err != nil {
-	// 	t.Fatal(exe.err)
-	// }
-	// return exe.path
+	exe.once.Do(func() {
+		exe.path, exe.err = exec.LookPath("govader")
+	})
+	if exe.err != nil {
+		t.Fatal(exe.err)
+	}
+	return exe.path
 }
 
 // govaderCompileAndRun runs govader for the named file and compiles and

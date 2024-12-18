@@ -11,11 +11,7 @@ func (tmpl *Template) Render(ctx context.Context, w io.Writer) { %>
 package <%= tmpl.PackageName %>
 
 import (
-	"errors"
-	"regexp"
-	"strings"
-
-	"github.com/spf13/cast"
+	<% tmpl.Generator.GenImport() %>
 )
 
 // presence	        required	            A rule without additional values

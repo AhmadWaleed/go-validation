@@ -285,13 +285,13 @@ func (g *Generator) GenEmailRule(rule SchemaRule) {
 
 func (g *Generator) GenSchmaValdation(schema Schema) {
 	// Define the schema struct type
-	g.Printf("type %sSchema struct {\n", schema.Type.name)
+	g.Printf("type %sSchema struct {\n", schema.Type.Name)
 	g.Printf("\trules []_Gov_Rule\n")
 	g.Printf("}\n\n")
 
 	// Define the constructor function for the schema
-	g.Printf("func New%sSchema(u %s) %sSchema {\n", schema.Type.name, schema.Type.name, schema.Type.name)
-	g.Printf("\treturn %sSchema{\n", schema.Type.name)
+	g.Printf("func New%sSchema(u %s) %sSchema {\n", schema.Type.Name, schema.Type.Name, schema.Type.Name)
+	g.Printf("\treturn %sSchema{\n", schema.Type.Name)
 	g.Printf("\t\trules: []_Gov_Rule{\n")
 
 	for _, rule := range schema.Rules {
@@ -366,7 +366,7 @@ func (g *Generator) GenSchmaValdation(schema Schema) {
 	g.Printf("\n")
 
 	// Generate the Validate method for the schema.
-	g.Printf("func (s %sSchema) Validate() (messages []string) {\n", schema.Type.name)
+	g.Printf("func (s %sSchema) Validate() (messages []string) {\n", schema.Type.Name)
 	g.Printf("\tfor _, rule := range s.rules {\n")
 	g.Printf("\t\tif err := rule.Validate(); err != nil {\n")
 	g.Printf("\t\t\tmessages = append(messages, err.Error())\n")

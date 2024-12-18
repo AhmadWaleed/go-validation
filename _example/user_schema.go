@@ -78,18 +78,18 @@ func (r _Gov_RuleConditional) Validate() error {
 }
 
 var _Gov_Schema_message = map[string]string{
-	"different":        "The :field1 field must be different from the :field2 field.",
-	"regexp":           "The :field field does not match the required format :value.",
-	"required_without": "The :field1 field is required when :field2 is not present.",
 	"min":              "The :field field must be at least :value.",
+	"max":              "The :field field may not be greater than :value.",
 	"size":             "The :field field must be of size :value.",
 	"same":             "The :field1 field must match the :field2 field.",
-	"between":          "The :field1 field must be between :field2 and :value2.",
-	"email":            "The :field field must be a valid email address.",
+	"different":        "The :field1 field must be different from the :field2 field.",
+	"regexp":           "The :field field does not match the required format :value.",
 	"required":         "The :field field is required.",
 	"required_if":      "The :field1 field is required when :field2 is :value2.",
 	"required_with":    "The :field1 field is required when :field2 is present.",
-	"max":              "The :field field may not be greater than :value.",
+	"required_without": "The :field1 field is required when :field2 is not present.",
+	"between":          "The :field1 field must be between :field2 and :value2.",
+	"email":            "The :field field must be a valid email address.",
 }
 
 func _Gov_Error(key, field1, value1, field2, value2 string) error {
@@ -148,6 +148,16 @@ func _Gov_regexp_string(field string, value string, cond string) error {
 	return nil
 }
 
+func _Gov_required_if(field1 string, value1 any, field2 string, value2 any, cond any) error {
+	v1, v2, c := cast.ToString(value1), cast.ToString(value2), cast.ToString(cond)
+	if v2 == c {
+		if v1 == "" || v1 == "0" {
+			return _Gov_Error("required_if", field1, "", field2, c)
+		}
+	}
+	return nil
+}
+
 func _Gov_between_int64(field string, value, min, max int64) error {
 	n, m := cast.ToString(min), cast.ToString(max)
 	if value < min || value > max {
@@ -172,32 +182,10 @@ func _Gov_size_int64(field string, value int64, cond int64) error {
 	return nil
 }
 
-func _Gov_required_if(field1 string, value1 any, field2 string, value2 any, cond any) error {
-	v1, v2, c := cast.ToString(value1), cast.ToString(value2), cast.ToString(cond)
-	if v2 == c {
-		if v1 == "" || v1 == "0" {
-			return _Gov_Error("required_if", field1, "", field2, c)
-		}
-	}
-	return nil
-}
-
-func _Gov_required_with(field1 string, value1 any, field2 string, value2 any, cond any) error {
+func _Gov_same(field1 string, value1 any, field2 string, value2 any, cond any) error {
 	v1, v2 := cast.ToString(value1), cast.ToString(value2)
-	if v2 != "" && v2 != "0" {
-		if v1 == "" || v1 == "0" {
-			return _Gov_Error("required_with", field1, "", field2, "")
-		}
-	}
-	return nil
-}
-
-func _Gov_required_without(field1 string, value1 any, field2 string, value2 any, cond any) error {
-	v1, v2 := cast.ToString(value1), cast.ToString(value2)
-	if v2 == "" || v2 == "0" {
-		if v1 == "" || v1 == "0" {
-			return _Gov_Error("required_without", field1, v1, field2, v2)
-		}
+	if v1 != v2 {
+		return _Gov_Error("same", field1, v1, field2, v2)
 	}
 	return nil
 }
@@ -247,6 +235,14 @@ func NewUserSchema(u User) UserSchema {
 				Cond:      `^[0-9]*$`,
 				Validator: _Gov_regexp_string,
 			},
+			_Gov_RuleConditional{
+				Field1:    "ID",
+				Field2:    "Name",
+				Value1:    u.ID,
+				Value2:    u.Name,
+				Cond:      "John",
+				Validator: _Gov_required_if,
+			},
 			_Gov_RuleRange[int64]{
 				Field:     "ID",
 				Value:     int64(u.ID),
@@ -264,37 +260,15 @@ func NewUserSchema(u User) UserSchema {
 			_Gov_RuleValueConstraint[int64]{
 				Field:     "ID",
 				Value:     int64(u.ID),
-				Cond:      2,
+				Cond:      10,
 				Validator: _Gov_size_int64,
 			},
 			_Gov_RuleConditional{
-				Field1:    "ID2",
-				Field2:    "Name",
-				Value1:    u.ID2,
-				Value2:    u.Name,
-				Cond:      "John",
-				Validator: _Gov_required_if,
-			},
-			_Gov_RuleConditional{
-				Field1:    "ID3",
-				Field2:    "ID",
-				Value1:    u.ID3,
-				Value2:    u.ID,
-				Validator: _Gov_required_with,
-			},
-			_Gov_RuleConditional{
-				Field1:    "ID4",
-				Field2:    "ID",
-				Value1:    u.ID4,
-				Value2:    u.ID,
-				Validator: _Gov_required_without,
-			},
-			_Gov_RuleConditional{
-				Field1:    "ID5",
-				Field2:    "ID6",
-				Value1:    u.ID5,
-				Value2:    u.ID6,
-				Validator: _Gov_required_with,
+				Field1:    "ID",
+				Field2:    "ID3",
+				Value1:    u.ID,
+				Value2:    u.ID3,
+				Validator: _Gov_same,
 			},
 			_Gov_RulePresence[string]{
 				Field:     "Name",

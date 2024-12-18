@@ -19,10 +19,10 @@ func Test__parseSchema(t *testing.T) {
 			name: "parse presence rule",
 			info: []StructInfo{
 				{
-					name: "User",
-					fieldList: []FieldInfo{
-						{name: "ID", tag: "required", typ: types.IsInteger},
-						{name: "Name", tag: "required", typ: types.IsString},
+					Name: "User",
+					FieldList: []FieldInfo{
+						{Name: "ID", Tag: "required", Type: types.IsInteger},
+						{Name: "Name", Tag: "required", Type: types.IsString},
 					},
 				},
 			},
@@ -32,7 +32,7 @@ func Test__parseSchema(t *testing.T) {
 						{Name: "required", Type: rulePresence, Field1: "ID", Cond1: &Value{Type: types.IsInteger}},
 						{Name: "required", Type: rulePresence, Field1: "Name", Cond1: &Value{Type: types.IsString}},
 					},
-					validators: []string{"required"},
+					Validators: []string{"required"},
 				},
 			},
 		},
@@ -40,12 +40,12 @@ func Test__parseSchema(t *testing.T) {
 			name: "parse value constraint rule",
 			info: []StructInfo{
 				{
-					name: "User",
-					fieldList: []FieldInfo{
-						{name: "ID", tag: "min=1", typ: types.IsInteger},
-						{name: "Name", tag: "size=10", typ: types.IsInteger},
-						{name: "Age", tag: "regexp=^[0-9]*$", typ: types.IsString},
-						{name: "Email", tag: "email", typ: types.IsString},
+					Name: "User",
+					FieldList: []FieldInfo{
+						{Name: "ID", Tag: "min=1", Type: types.IsInteger},
+						{Name: "Name", Tag: "size=10", Type: types.IsInteger},
+						{Name: "Age", Tag: "regexp=^[0-9]*$", Type: types.IsString},
+						{Name: "Email", Tag: "email", Type: types.IsString},
 					},
 				},
 			},
@@ -57,7 +57,7 @@ func Test__parseSchema(t *testing.T) {
 						{Name: "regexp", Type: ruleValueConstraint, Field1: "Age", Cond1: &Value{Value: "^[0-9]*$", Type: types.IsString}},
 						{Name: "email", Type: ruleValueConstraint, Field1: "Email", Cond1: &Value{Type: types.IsString}},
 					},
-					validators: []string{"min", "size", "regexp", "email"},
+					Validators: []string{"min", "size", "regexp", "email"},
 				},
 			},
 		},
@@ -65,9 +65,9 @@ func Test__parseSchema(t *testing.T) {
 			name: "parse range rule",
 			info: []StructInfo{
 				{
-					name: "User",
-					fieldList: []FieldInfo{
-						{name: "Age", tag: "between=1,10", typ: types.IsInteger},
+					Name: "User",
+					FieldList: []FieldInfo{
+						{Name: "Age", Tag: "between=1,10", Type: types.IsInteger},
 					},
 				},
 			},
@@ -82,7 +82,7 @@ func Test__parseSchema(t *testing.T) {
 							Cond2:  &Value{Value: int64(10), Type: types.IsInteger},
 						},
 					},
-					validators: []string{"between"},
+					Validators: []string{"between"},
 				},
 			},
 		},
@@ -90,9 +90,9 @@ func Test__parseSchema(t *testing.T) {
 			name: "parse conditional rule",
 			info: []StructInfo{
 				{
-					name: "User",
-					fieldList: []FieldInfo{
-						{name: "ID", tag: "required_if:Name=John;different:ID2;same:ID3;required_with:ID1"},
+					Name: "User",
+					FieldList: []FieldInfo{
+						{Name: "ID", Tag: "required_if:Name=John;different:ID2;same:ID3;required_with:ID1"},
 					},
 				},
 			},
@@ -104,7 +104,7 @@ func Test__parseSchema(t *testing.T) {
 						{Name: "same", Type: ruleConditional, Field1: "ID", Field2: "ID3"},
 						{Name: "required_with", Type: ruleConditional, Field1: "ID", Field2: "ID1"},
 					},
-					validators: []string{"required_if", "different", "same", "required_with"},
+					Validators: []string{"required_if", "different", "same", "required_with"},
 				},
 			},
 		},
@@ -119,8 +119,8 @@ func Test__parseSchema(t *testing.T) {
 				for i, want := range tt.want {
 					got := schemas[i]
 					assert.Equal(t, want.Rules, got.Rules)
-					for _, v := range want.validators {
-						assert.Contains(t, got.validators, v)
+					for _, v := range want.Validators {
+						assert.Contains(t, got.Validators, v)
 					}
 				}
 			}

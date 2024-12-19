@@ -21,16 +21,16 @@ func Test__parseSchema(t *testing.T) {
 				{
 					Name: "User",
 					FieldList: []FieldInfo{
-						{Name: "ID", Tag: "required", Type: types.IsInteger},
-						{Name: "Name", Tag: "required", Type: types.IsString},
+						{Name: "ID", Tag: "required", Type: types.Int},
+						{Name: "Name", Tag: "required", Type: types.String},
 					},
 				},
 			},
 			want: []Schema{
 				{
 					Rules: []SchemaRule{
-						{Name: "required", Type: rulePresence, Field1: "ID", Cond1: &Value{Type: types.IsInteger}},
-						{Name: "required", Type: rulePresence, Field1: "Name", Cond1: &Value{Type: types.IsString}},
+						{Name: "required", Type: rulePresence, Field1: "ID", Cond1: &Value{Type: types.Int, Value: int64(0)}},
+						{Name: "required", Type: rulePresence, Field1: "Name", Cond1: &Value{Type: types.String, Value: ""}},
 					},
 					Validators: []string{"required"},
 				},
@@ -42,20 +42,20 @@ func Test__parseSchema(t *testing.T) {
 				{
 					Name: "User",
 					FieldList: []FieldInfo{
-						{Name: "ID", Tag: "min=1", Type: types.IsInteger},
-						{Name: "Name", Tag: "size=10", Type: types.IsInteger},
-						{Name: "Age", Tag: "regexp=^[0-9]*$", Type: types.IsString},
-						{Name: "Email", Tag: "email", Type: types.IsString},
+						{Name: "ID", Tag: "min=1", Type: types.Int},
+						{Name: "Name", Tag: "size=10", Type: types.Int},
+						{Name: "Age", Tag: "regexp=^[0-9]*$", Type: types.String},
+						{Name: "Email", Tag: "email", Type: types.String},
 					},
 				},
 			},
 			want: []Schema{
 				{
 					Rules: []SchemaRule{
-						{Name: "min", Type: ruleValueConstraint, Field1: "ID", Cond1: &Value{Value: int64(1), Type: types.IsInteger}},
-						{Name: "size", Type: ruleValueConstraint, Field1: "Name", Cond1: &Value{Value: int64(10), Type: types.IsInteger}},
-						{Name: "regexp", Type: ruleValueConstraint, Field1: "Age", Cond1: &Value{Value: "^[0-9]*$", Type: types.IsString}},
-						{Name: "email", Type: ruleValueConstraint, Field1: "Email", Cond1: &Value{Type: types.IsString}},
+						{Name: "min", Type: ruleValueConstraint, Field1: "ID", Cond1: &Value{Value: int64(1), Type: types.Int}},
+						{Name: "size", Type: ruleValueConstraint, Field1: "Name", Cond1: &Value{Value: int64(10), Type: types.Int}},
+						{Name: "regexp", Type: ruleValueConstraint, Field1: "Age", Cond1: &Value{Value: "^[0-9]*$", Type: types.String}},
+						{Name: "email", Type: ruleValueConstraint, Field1: "Email", Cond1: &Value{Type: types.String}},
 					},
 					Validators: []string{"min", "size", "regexp", "email"},
 				},
@@ -67,7 +67,7 @@ func Test__parseSchema(t *testing.T) {
 				{
 					Name: "User",
 					FieldList: []FieldInfo{
-						{Name: "Age", Tag: "between=1,10", Type: types.IsInteger},
+						{Name: "Age", Tag: "between=1,10", Type: types.Int},
 					},
 				},
 			},
@@ -78,8 +78,8 @@ func Test__parseSchema(t *testing.T) {
 							Name:   "between",
 							Type:   ruleRange,
 							Field1: "Age",
-							Cond1:  &Value{Value: int64(1), Type: types.IsInteger},
-							Cond2:  &Value{Value: int64(10), Type: types.IsInteger},
+							Cond1:  &Value{Value: int64(1), Type: types.Int},
+							Cond2:  &Value{Value: int64(10), Type: types.Int},
 						},
 					},
 					Validators: []string{"between"},
@@ -92,14 +92,14 @@ func Test__parseSchema(t *testing.T) {
 				{
 					Name: "User",
 					FieldList: []FieldInfo{
-						{Name: "ID", Tag: "required_if:Name=John;different:ID2;same:ID3;required_with:ID1"},
+						{Name: "ID", Tag: "required_if:Name=John;different:ID2;same:ID3;required_with:ID1", Type: types.String},
 					},
 				},
 			},
 			want: []Schema{
 				{
 					Rules: []SchemaRule{
-						{Name: "required_if", Type: ruleConditional, Field1: "ID", Field2: "Name", Cond1: &Value{Value: "John"}},
+						{Name: "required_if", Type: ruleConditional, Field1: "ID", Field2: "Name", Cond1: &Value{Value: "John", Type: types.String}},
 						{Name: "different", Type: ruleConditional, Field1: "ID", Field2: "ID2"},
 						{Name: "same", Type: ruleConditional, Field1: "ID", Field2: "ID3"},
 						{Name: "required_with", Type: ruleConditional, Field1: "ID", Field2: "ID1"},

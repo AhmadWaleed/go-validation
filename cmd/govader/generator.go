@@ -102,12 +102,12 @@ func (g *Generator) GenRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenPresenceRule(rule SchemaRule) {
-	typ := rule.Cond1.TypeString()
+	typ := rule.Cond1.TypeName()
 	g.Printf("func _Gov_%s_%s(field string, value %s) error {\n", rule.Name, typ, typ)
 	switch typ {
 	case "int64":
 		g.Printf("\tif value == 0 {\n")
-	case "unit64":
+	case "uint64":
 		g.Printf("\tif value <= 0 {\n")
 	case "float64":
 		g.Printf("\tif value == 0 || value == 0.0 {\n")
@@ -220,7 +220,7 @@ func (g *Generator) GenDifferentRule(rule SchemaRule) {
 
 func (g *Generator) GenBetweenRule(rule SchemaRule) {
 	g.AddImport("github.com/spf13/cast")
-	typ := rule.Cond1.TypeString()
+	typ := rule.Cond1.TypeName()
 	g.Printf("func _Gov_%s_%s(field string, value, min, max %s) error {\n", rule.Name, typ, typ)
 	g.Printf("\tn, m := cast.ToString(min), cast.ToString(max)\n")
 	switch typ {
@@ -241,7 +241,7 @@ func (g *Generator) GenBetweenRule(rule SchemaRule) {
 
 func (g *Generator) GenMinRule(rule SchemaRule) {
 	g.AddImport("github.com/spf13/cast")
-	typ := rule.Cond1.TypeString()
+	typ := rule.Cond1.TypeName()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
 	case "int64":
@@ -261,7 +261,7 @@ func (g *Generator) GenMinRule(rule SchemaRule) {
 
 func (g *Generator) GenMaxRule(rule SchemaRule) {
 	g.AddImport("github.com/spf13/cast")
-	typ := rule.Cond1.TypeString()
+	typ := rule.Cond1.TypeName()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, typ, typ, typ)
 	switch typ {
 	case "int64":
@@ -281,7 +281,7 @@ func (g *Generator) GenMaxRule(rule SchemaRule) {
 
 func (g *Generator) GenSizeRule(rule SchemaRule) {
 	g.AddImport("github.com/spf13/cast")
-	t := rule.Cond1.TypeString()
+	t := rule.Cond1.TypeName()
 	g.Printf("func _Gov_%s_%s(field string, value %s, cond %s) error {\n", rule.Name, t, t, t)
 	g.Printf("\tv := cast.ToString(value)\n")
 	g.Printf("\tif len(v) != int(cond) {\n")
@@ -304,7 +304,7 @@ func (g *Generator) GenRegexpRule(rule SchemaRule) {
 }
 
 func (g *Generator) GenEmailRule(rule SchemaRule) {
-	g.Printf("func _Gov_%s_string(field string, value string, cond %s) error {\n", rule.Name, rule.Cond1.TypeString())
+	g.Printf("func _Gov_%s_string(field string, value string, cond %s) error {\n", rule.Name, rule.Cond1.TypeName())
 	g.Printf("\tatIndex, dotIndex := strings.Index(value, \"@\"), strings.LastIndex(value, \".\")\n")
 	g.Printf("\tif atIndex < 1 || dotIndex < atIndex+2 || dotIndex+2 >= len(value) {\n")
 	g.Printf("\t\treturn _Gov_Error(\"%s\", field, \"\", \"\", \"\")\n", rule.Name)
@@ -328,15 +328,15 @@ func (g *Generator) GenSchmaValdation(schema Schema) {
 		switch rule.Type {
 		case rulePresence:
 			// Generate presence rule
-			g.Printf("\t\t\t_Gov_RulePresence[%s]{\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t_Gov_RulePresence[%s]{\n", rule.Cond1.TypeName())
 			g.Printf("\t\t\t\tField:     \"%s\",\n", rule.Field1)
-			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeString(), rule.Field1)
-			g.Printf("\t\t\t\tValidator: _Gov_required_%s,\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeName(), rule.Field1)
+			g.Printf("\t\t\t\tValidator: _Gov_required_%s,\n", rule.Cond1.TypeName())
 			g.Printf("\t\t\t},\n")
 
 		case ruleValueConstraint:
 			// Generate value constraint rule (e.g., min, max, regexp)
-			typ := rule.Cond1.TypeString()
+			typ := rule.Cond1.TypeName()
 			if rule.Name == "regexp" {
 				typ = "string"
 			}
@@ -362,16 +362,16 @@ func (g *Generator) GenSchmaValdation(schema Schema) {
 
 		case ruleRange:
 			// Generate range rule (e.g., between)
-			g.Printf("\t\t\t_Gov_RuleRange[%s]{\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t_Gov_RuleRange[%s]{\n", rule.Cond1.TypeName())
 			g.Printf("\t\t\t\tField:     \"%s\",\n", rule.Field1)
-			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeString(), rule.Field1)
+			g.Printf("\t\t\t\tValue:     %s(u.%s),\n", rule.Cond1.TypeName(), rule.Field1)
 			if rule.Cond1 != nil {
 				g.Printf("\t\t\t\tMin:       %v,\n", rule.Cond1.Value)
 			}
 			if rule.Cond2 != nil {
 				g.Printf("\t\t\t\tMax:       %v,\n", rule.Cond2.Value)
 			}
-			g.Printf("\t\t\t\tValidator: _Gov_between_%s,\n", rule.Cond1.TypeString())
+			g.Printf("\t\t\t\tValidator: _Gov_between_%s,\n", rule.Cond1.TypeName())
 			g.Printf("\t\t\t},\n")
 
 		case ruleConditional:

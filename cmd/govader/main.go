@@ -165,7 +165,7 @@ func (f *File) scanTypeStruct(n ast.Node) bool {
 	for _, field := range structType.Fields.List {
 		for _, iden := range field.Names {
 			fieldType := f.pkg.TypesInfo.TypeOf(field.Type)
-			basicType := fieldType.Underlying().(*types.Basic).Info()
+			basicType := fieldType.Underlying().(*types.Basic).Kind()
 
 			var tag string
 			if field.Tag != nil {

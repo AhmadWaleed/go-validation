@@ -93,6 +93,9 @@ func main() {
 
 	// Write to file.
 	outputName := *output
+	if len(foundTypes) > 1 {
+		outputName = "" // Force single files for multiple types.
+	}
 	if outputName == "" {
 		outputName = filepath.Join(dir, baseName(foundTypes[0]))
 	}

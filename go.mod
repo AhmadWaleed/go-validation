@@ -1,4 +1,4 @@
-module github.comm/AhamdWaleed/go-validation
+module github.com/AhamdWaleed/go-validation
 
 go 1.23.2
 
